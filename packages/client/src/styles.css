@@ -290,6 +290,116 @@ tr.row-applied .row-head::after {
   font-size: 12px;
 }
 
+/* ---------- 浮线风险 ---------- */
+/* 区间下划红线：用渐变叠加在符号底色之上，避免与 row-error 的 box-shadow 冲突 */
+.grid-cell.float-risk {
+  background-image: linear-gradient(to top, var(--danger) 0 4px, transparent 4px);
+}
+
+/* 起止列（同色针脚）描边 */
+.grid-cell.float-anchor {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+}
+
+/* 风险列表中选中的浮线：蓝色加粗描边 */
+.grid-cell.float-selected {
+  outline: 3px solid var(--primary);
+  outline-offset: -3px;
+}
+
+tr.row-float-selected .row-head .row-no {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.float-panel {
+  margin-top: 14px;
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.float-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3e2c0;
+}
+
+.float-threshold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.float-threshold select {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+.float-ok {
+  padding: 10px 12px;
+  color: var(--ok-border);
+  font-size: 13px;
+}
+
+.float-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 8px;
+  max-height: 180px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.float-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.float-item:hover {
+  background: var(--warn-bg);
+}
+
+.float-item.selected {
+  background: var(--warn-bg);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.float-loc {
+  flex: none;
+  font-weight: 700;
+  color: #9a6a12;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.float-msg {
+  color: #5b4a2b;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 /* ---------- 口令编辑器 ---------- */
 .editor-shell {
   position: relative;
@@ -463,6 +573,20 @@ tr.row-applied .row-head::after {
 .swatch.err {
   background: var(--danger-bg);
   box-shadow: inset 0 0 0 2px var(--danger);
+}
+.swatch.float {
+  background: linear-gradient(to top, var(--danger) 0 4px, transparent 4px);
+  border: 1px solid var(--line);
+}
+.swatch.sym-a {
+  background: var(--sym-a-bg);
+  box-shadow: inset 0 0 0 1px var(--sym-a-ink);
+}
+.swatch.sym-b {
+  background: var(--sym-b-bg);
+}
+.swatch.sym-c {
+  background: var(--sym-c-bg);
 }
 
 .app-footer {

@@ -77,3 +77,29 @@ export interface DecodeResponse {
   appliedRows: number[];
   ok: boolean;
 }
+
+/**
+ * 一段浮线：同一行内某种颜色相邻两次落针之间、被同色针脚两端夹住的区间。
+ * 全部使用视觉坐标（1 基），与奇偶行编织方向无关。
+ */
+export interface FloatSpan {
+  /** 1 基行号 */
+  row: number;
+  /** 浮线所属符号（颜色） */
+  symbol: string;
+  /** 左端同色针脚所在视觉列（1 基） */
+  startCol: number;
+  /** 右端同色针脚所在视觉列（1 基） */
+  endCol: number;
+  /** 跨过的其他颜色针数 = endCol - startCol - 1 */
+  length: number;
+}
+
+export interface FloatCheckResult {
+  /** 本次检查使用的最大浮线针数阈值 */
+  maxFloat: number;
+  /** 全部浮线区间（按视觉坐标排序：行 → 起始列 → 结束列） */
+  spans: FloatSpan[];
+  /** 超过阈值的浮线（spans 的子集，同样按视觉坐标排序） */
+  risks: FloatSpan[];
+}

@@ -1,5 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { DecodeIssue } from '@jacquard/shared';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DecodeIssue, FloatSpan } from '@jacquard/shared';
+import {
+  MAX_FLOAT_DEFAULT,
+  MAX_FLOAT_MAX,
+  MAX_FLOAT_MIN,
+  checkFloats,
+} from '@jacquard/shared';
 import { api } from './api.js';
 import GridEditor from './GridEditor.js';
 import CommandEditor from './CommandEditor.js';
@@ -46,6 +52,25 @@ export default function App() {
     kind: 'ok' | 'warn' | 'error';
     text: string;
   } | null>(null);
+
+  /** 浮线风险检查：最大浮线针数阈值与当前选中的风险条目 */
+  const [maxFloat, setMaxFloat] = useState(MAX_FLOAT_DEFAULT);
+  const [selectedFloat, setSelectedFloat] = useState<FloatSpan | null>(null);
+
+  /**
+   * 浮线分析完全基于视觉坐标（不随偶数行镜像），纯函数实时重算：
+   * 图案绘制、行宽/行数变化、口令回写（合法行覆盖、错误行保留原图）
+   * 都会更新 grid，阈值变化更新 maxFloat，二者任一变化即重新检查。
+   */
+  const floatResult = useMemo(
+    () => checkFloats(grid, maxFloat),
+    [grid, maxFloat],
+  );
+
+  /** 图案或阈值变化后，之前选中的风险条目可能已不存在，清空选中态 */
+  useEffect(() => {
+    setSelectedFloat(null);
+  }, [grid, maxFloat]);
 
   /** 口令文本是否与当前网格一致（未手工修改） */
   const syncedText = useRef<string | null>(null);
@@ -275,8 +300,67 @@ export default function App() {
               grid={grid}
               rowIssueMap={rowIssueMap}
               appliedRows={appliedRows}
+              floatRisks={floatResult.risks}
+              selectedFloat={selectedFloat}
               onPaint={paint}
             />
+            <section className="float-panel" aria-label="浮线风险检查">
+              <div className="float-head">
+                <label className="float-threshold">
+                  最大浮线针数
+                  <select
+                    value={maxFloat}
+                    onChange={(e) => setMaxFloat(Number(e.target.value))}
+                  >
+                    {Array.from(
+                      { length: MAX_FLOAT_MAX - MAX_FLOAT_MIN + 1 },
+                      (_, i) => MAX_FLOAT_MIN + i,
+                    ).map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                  针
+                </label>
+                <span className="hint">
+                  逐行检查：被同色针脚两端夹住的区间，跨针数超过阈值即标出起止列；
+                  行首尾开放区间不计。按视觉坐标定位，不随偶数行镜像。
+                </span>
+              </div>
+              {floatResult.risks.length === 0 ? (
+                <div className="float-ok">
+                  ✓ 当前图案没有超过 {maxFloat} 针的浮线
+                </div>
+              ) : (
+                <ul className="float-list">
+                  {floatResult.risks.map((span) => (
+                    <li
+                      key={`${span.row}-${span.startCol}-${span.endCol}-${span.symbol}`}
+                    >
+                      <button
+                        type="button"
+                        className={`float-item${
+                          span === selectedFloat ? ' selected' : ''
+                        }`}
+                        onClick={() => setSelectedFloat(span)}
+                      >
+                        <i
+                          className={`swatch sym-${span.symbol.toLowerCase()}`}
+                        />
+                        <span className="float-loc">
+                          第 {span.row} 行 · 第 {span.startCol}–{span.endCol} 列
+                        </span>
+                        <span className="float-msg">
+                          符号 {span.symbol} 浮线 {span.length} 针（阈值{' '}
+                          {maxFloat}）
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             <div className="action-bar">
               <button
                 type="button"
@@ -295,6 +379,9 @@ export default function App() {
                 </span>
                 <span className="legend-item">
                   <i className="swatch err" /> 针数/语法错误行（保留原图）
+                </span>
+                <span className="legend-item">
+                  <i className="swatch float" /> 浮线风险（超阈值，起止列描边）
                 </span>
               </div>
             </div>
