@@ -77,3 +77,37 @@ export interface DecodeResponse {
   appliedRows: number[];
   ok: boolean;
 }
+
+/* ---------------- 浮线风险检查 ---------------- */
+
+/**
+ * 浮线风险：同一行内被同色针脚两端夹住、跨针数超过阈值的区间。
+ * 全部使用视觉坐标（1 基），奇偶行均不镜像。
+ */
+export interface FloatRisk {
+  /** 1 基行号（视觉行） */
+  row: number;
+  /** 浮线区间起点列（1 基视觉列）：左端同色针脚右侧第一针 */
+  startCol: number;
+  /** 浮线区间终点列（1 基视觉列）：右端同色针脚左侧第一针 */
+  endCol: number;
+  /** 两端夹住该区间的同色符号（即浮线所属颜色） */
+  symbol: string;
+  /** 区间内跨过的其他颜色针数 */
+  span: number;
+}
+
+export interface FloatRiskRequest {
+  grid: string[][];
+  width: number;
+  height: number;
+  /** 最大允许浮线针数（3–12），超过即报告 */
+  maxFloat: number;
+}
+
+export interface FloatRiskResponse {
+  /** 实际生效的阈值（已夹取到 3–12） */
+  maxFloat: number;
+  /** 按视觉坐标（行、起点列升序）排列的风险列表 */
+  risks: FloatRisk[];
+}

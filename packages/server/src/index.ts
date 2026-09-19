@@ -2,7 +2,13 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
-import { decodeText, encodeGrid } from '@jacquard/shared';
+import {
+  analyzeFloatRisks,
+  decodeText,
+  encodeGrid,
+  MAX_MAX_FLOAT,
+  MIN_MAX_FLOAT,
+} from '@jacquard/shared';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8080);
@@ -69,6 +75,24 @@ app.post('/api/decode', (req, res) => {
       fallback: fallback as string[][],
       symbols: symbols as string[],
     }),
+  );
+});
+
+app.post('/api/float-risks', (req, res) => {
+  const err = validateGridBody(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const { grid, width, height, maxFloat } = req.body;
+  if (
+    !Number.isInteger(maxFloat) ||
+    maxFloat < MIN_MAX_FLOAT ||
+    maxFloat > MAX_MAX_FLOAT
+  ) {
+    return res
+      .status(400)
+      .json({ error: `maxFloat 必须是 ${MIN_MAX_FLOAT}–${MAX_MAX_FLOAT} 的整数` });
+  }
+  return res.json(
+    analyzeFloatRisks({ grid: grid as string[][], width, height, maxFloat }),
   );
 });
 

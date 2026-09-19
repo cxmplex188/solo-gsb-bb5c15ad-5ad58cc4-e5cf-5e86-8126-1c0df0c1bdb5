@@ -3,6 +3,8 @@ import type {
   DecodeResponse,
   EncodeRequest,
   EncodeResponse,
+  FloatRiskRequest,
+  FloatRiskResponse,
 } from '@jacquard/shared';
 
 async function post<TReq, TRes>(url: string, body: TReq): Promise<TRes> {
@@ -23,4 +25,6 @@ async function post<TReq, TRes>(url: string, body: TReq): Promise<TRes> {
 export const api = {
   encode: (body: EncodeRequest) => post<EncodeRequest, EncodeResponse>('/api/encode', body),
   decode: (body: DecodeRequest) => post<DecodeRequest, DecodeResponse>('/api/decode', body),
+  floatRisks: (body: FloatRiskRequest) =>
+    post<FloatRiskRequest, FloatRiskResponse>('/api/float-risks', body),
 };

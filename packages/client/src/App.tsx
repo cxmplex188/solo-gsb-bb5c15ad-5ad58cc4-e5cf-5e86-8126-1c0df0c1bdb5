@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { DecodeIssue } from '@jacquard/shared';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DecodeIssue, FloatRisk } from '@jacquard/shared';
+import { clampMaxFloat, DEFAULT_MAX_FLOAT } from '@jacquard/shared';
 import { api } from './api.js';
 import GridEditor from './GridEditor.js';
 import CommandEditor from './CommandEditor.js';
@@ -47,8 +48,65 @@ export default function App() {
     text: string;
   } | null>(null);
 
+  /** 浮线风险检查：阈值（3–12）与实时分析结果 */
+  const [maxFloat, setMaxFloat] = useState(DEFAULT_MAX_FLOAT);
+  const [floatRisks, setFloatRisks] = useState<FloatRisk[]>([]);
+  const [riskError, setRiskError] = useState<string | null>(null);
+  const [selectedRisk, setSelectedRisk] = useState<FloatRisk | null>(null);
+  const [flashRow, setFlashRow] = useState<number | null>(null);
+
   /** 口令文本是否与当前网格一致（未手工修改） */
   const syncedText = useRef<string | null>(null);
+
+  // 图案、尺寸或阈值变化后实时重算浮线风险；
+  // 口令合法行回写 / 错误行保留原图也会改变 grid，同样触发重算
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api
+        .floatRisks({ grid, width, height, maxFloat })
+        .then((res) => {
+          if (cancelled) return;
+          setFloatRisks(res.risks);
+          setRiskError(null);
+        })
+        .catch((e) => {
+          if (!cancelled) setRiskError((e as Error).message);
+        });
+    }, 120);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [grid, width, height, maxFloat]);
+
+  // 重算后若选中项已不存在（图案/阈值变化），自动取消选中
+  useEffect(() => {
+    setSelectedRisk((prev) =>
+      prev &&
+      floatRisks.some(
+        (r) =>
+          r.row === prev.row &&
+          r.startCol === prev.startCol &&
+          r.endCol === prev.endCol &&
+          r.symbol === prev.symbol,
+      )
+        ? prev
+        : null,
+    );
+  }, [floatRisks]);
+
+  // 定位闪烁行短暂高亮后自动消退
+  useEffect(() => {
+    if (flashRow === null) return;
+    const timer = setTimeout(() => setFlashRow(null), 1600);
+    return () => clearTimeout(timer);
+  }, [flashRow]);
+
+  const locateRisk = (risk: FloatRisk) => {
+    setSelectedRisk(risk);
+    setFlashRow(risk.row);
+  };
 
   const paint = useCallback(
     (r: number, c: number) => {
@@ -215,6 +273,17 @@ export default function App() {
               onChange={(e) => changeHeight(Number(e.target.value))}
             />
           </label>
+          <label title="同一行内被同色针脚夹住的异色针数超过该值即报告">
+            最大浮线
+            <input
+              type="number"
+              min={3}
+              max={12}
+              value={maxFloat}
+              onChange={(e) => setMaxFloat(clampMaxFloat(Number(e.target.value)))}
+            />
+            针
+          </label>
         </div>
 
         <div className="tool-group symbol-group" role="group" aria-label="符号选择">
@@ -275,8 +344,53 @@ export default function App() {
               grid={grid}
               rowIssueMap={rowIssueMap}
               appliedRows={appliedRows}
+              floatRisks={floatRisks}
+              selectedRisk={selectedRisk}
+              flashRow={flashRow}
               onPaint={paint}
             />
+            <div className="risk-panel">
+              <div className="risk-head">
+                {riskError
+                  ? `浮线风险检查失败：${riskError}`
+                  : floatRisks.length === 0
+                    ? `浮线风险检查：未发现超过 ${maxFloat} 针的浮线（仅统计被同色针脚夹住的区间，行首/行尾开放区间不计）。`
+                    : `发现 ${floatRisks.length} 段浮线超过 ${maxFloat} 针——点击条目定位对应行列：`}
+              </div>
+              {floatRisks.length > 0 && (
+                <ul>
+                  {floatRisks.map((risk, idx) => {
+                    const selected =
+                      selectedRisk !== null &&
+                      selectedRisk.row === risk.row &&
+                      selectedRisk.startCol === risk.startCol &&
+                      selectedRisk.endCol === risk.endCol &&
+                      selectedRisk.symbol === risk.symbol;
+                    return (
+                      <li key={idx}>
+                        <button
+                          type="button"
+                          className={`risk-item${selected ? ' selected' : ''}`}
+                          onClick={() => locateRisk(risk)}
+                        >
+                          <span className="risk-loc">
+                            第 {risk.row} 行 · 第 {risk.startCol}–{risk.endCol} 列
+                          </span>
+                          <span
+                            className={`risk-sym sym-${risk.symbol.toLowerCase()}`}
+                          >
+                            {risk.symbol}
+                          </span>
+                          <span className="risk-msg">
+                            {risk.symbol} 浮线跨 {risk.span} 针（阈值 {maxFloat} 针）
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
             <div className="action-bar">
               <button
                 type="button"
@@ -295,6 +409,9 @@ export default function App() {
                 </span>
                 <span className="legend-item">
                   <i className="swatch err" /> 针数/语法错误行（保留原图）
+                </span>
+                <span className="legend-item">
+                  <i className="swatch float" /> 浮线超阈值行（点击列表定位起止列）
                 </span>
               </div>
             </div>
